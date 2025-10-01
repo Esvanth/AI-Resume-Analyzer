@@ -57,8 +57,27 @@ class ResumeParser:
                 # File path
                 doc = Document(docx_file)
             
+            # Extract text from paragraphs
             for paragraph in doc.paragraphs:
                 text += paragraph.text + "\n"
+            
+            # Also extract hyperlinks from the document
+            # Many resumes have LinkedIn as a hyperlink
+            for paragraph in doc.paragraphs:
+                for run in paragraph.runs:
+                    if run.element.tag.endswith('hyperlink') or 'hyperlink' in str(run.element.xml):
+                        # Try to extract hyperlink URL
+                        pass
+            
+            # Try to extract from document relationships (where hyperlinks are stored)
+            try:
+                for rel in doc.part.rels.values():
+                    if "hyperlink" in rel.reltype:
+                        url = rel.target_ref
+                        if 'linkedin' in url.lower():
+                            text += f"\n{url}\n"
+            except:
+                pass
                 
         except Exception as e:
             print(f"Error extracting DOCX text: {str(e)}")
@@ -67,18 +86,54 @@ class ResumeParser:
         return text
     
     def clean_text(self, text):
-        """Clean and normalize text"""
+        """Clean and normalize text while preserving important patterns like URLs"""
         if not text:
             return ""
         
-        # Remove extra whitespace
+        # First, protect URLs and email addresses by temporarily replacing them
+        url_pattern = r'https?://[^\s]+'
+        urls = re.findall(url_pattern, text)
+        url_placeholders = {}
+        for i, url in enumerate(urls):
+            placeholder = f"__URL_{i}__"
+            url_placeholders[placeholder] = url
+            text = text.replace(url, placeholder)
+        
+        # Protect LinkedIn URLs without protocol
+        linkedin_pattern = r'(?:www\.)?linkedin\.com/(?:in|pub)/[\w\-]+'
+        linkedin_urls = re.findall(linkedin_pattern, text, re.IGNORECASE)
+        for i, url in enumerate(linkedin_urls):
+            placeholder = f"__LINKEDIN_{i}__"
+            url_placeholders[placeholder] = url
+            text = text.replace(url, placeholder)
+        
+        # Protect email addresses
+        email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+        emails = re.findall(email_pattern, text)
+        email_placeholders = {}
+        for i, email in enumerate(emails):
+            placeholder = f"__EMAIL_{i}__"
+            email_placeholders[placeholder] = email
+            text = text.replace(email, placeholder)
+        
+        # Now clean the text
+        # Remove extra whitespace but keep single spaces
         text = re.sub(r'\s+', ' ', text)
         
         # Remove special characters but keep important ones
-        text = re.sub(r'[^\w\s@.-]', ' ', text)
+        # Keep: letters, numbers, spaces, @, ., -, _, and our placeholders
+        text = re.sub(r'[^\w\s@.\-_]', ' ', text)
         
         # Remove multiple spaces
         text = re.sub(r' +', ' ', text)
+        
+        # Restore URLs
+        for placeholder, url in url_placeholders.items():
+            text = text.replace(placeholder, url)
+        
+        # Restore emails
+        for placeholder, email in email_placeholders.items():
+            text = text.replace(placeholder, email)
         
         return text.strip()
     
@@ -94,7 +149,19 @@ class ResumeParser:
             else:
                 raise ValueError(f"Unsupported file format: {file_extension}")
             
-            return self.clean_text(text)
+            # Debug: Print raw text before cleaning (you can remove this later)
+            print("=== RAW TEXT SAMPLE ===")
+            print(text[:500])
+            print("======================")
+            
+            cleaned_text = self.clean_text(text)
+            
+            # Debug: Print cleaned text sample (you can remove this later)
+            print("=== CLEANED TEXT SAMPLE ===")
+            print(cleaned_text[:500])
+            print("===========================")
+            
+            return cleaned_text
             
         except Exception as e:
             print(f"Error parsing resume: {str(e)}")
