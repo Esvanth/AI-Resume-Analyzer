@@ -55,22 +55,40 @@ class NLPProcessor:
         emails = re.findall(email_pattern, text)
         contact['email'] = emails[0] if emails else None
         
-        # Phone extraction (various formats)
+        # Phone extraction (various formats) - IMPROVED
         phone_patterns = [
-            r'(\+\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}',  # US format
-            r'\+\d{1,3}[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}',     # International
-            r'\d{10}',  # Simple 10 digit
+            # International with country code
+            r'\+\d{1,3}[-.\s]?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}',
+            # US format with parentheses: (123) 456-7890
+            r'\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}',
+            # US format with dots: 123.456.7890
+            r'\d{3}\.\d{3}\.\d{4}',
+            # US format with dashes: 123-456-7890
+            r'\d{3}-\d{3}-\d{4}',
+            # Simple 10 digit: 1234567890
+            r'\b\d{10}\b',
+            # Indian format: +91 12345 67890 or +91-1234567890
+            r'\+91[-.\s]?\d{5}[-.\s]?\d{5}',
+            r'\+91[-.\s]?\d{10}',
+            # General international
+            r'\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b',
         ]
         
         phones = []
         for pattern in phone_patterns:
-            phones.extend(re.findall(pattern, text))
+            matches = re.findall(pattern, text)
+            if matches:
+                phones.extend(matches)
+                break  # Use the first pattern that finds a match
         
         # Clean and format phone numbers
         if phones:
             phone = phones[0]
             if isinstance(phone, tuple):
-                phone = ''.join(phone)
+                phone = ''.join(filter(None, phone))  # Join tuple and filter empty strings
+            
+            # Remove extra whitespace
+            phone = ' '.join(phone.split())
             contact['phone'] = phone.strip()
         else:
             contact['phone'] = None
