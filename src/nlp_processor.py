@@ -75,16 +75,29 @@ class NLPProcessor:
         else:
             contact['phone'] = None
         
-        # LinkedIn extraction
-        linkedin_patterns = [
-            r'linkedin\.com/in/[\w-]+',
-            r'linkedin\.com/pub/[\w-]+',
-            r'www\.linkedin\.com/in/[\w-]+'
-        ]
-        
+        # LinkedIn extraction - IMPROVED VERSION
         linkedin_urls = []
-        for pattern in linkedin_patterns:
-            linkedin_urls.extend(re.findall(pattern, text.lower()))
+        
+        # Pattern 1: Full URL with http/https
+        full_url_pattern = r'https?://(?:www\.)?linkedin\.com/(?:in|pub)/[\w\-]+'
+        linkedin_urls.extend(re.findall(full_url_pattern, text, re.IGNORECASE))
+        
+        # Pattern 2: URL without protocol
+        if not linkedin_urls:
+            partial_url_pattern = r'(?:www\.)?linkedin\.com/(?:in|pub)/[\w\-]+'
+            partial_matches = re.findall(partial_url_pattern, text, re.IGNORECASE)
+            if partial_matches:
+                # Add https:// prefix if not present
+                linkedin_urls = [f"https://{url}" if not url.startswith('http') else url 
+                               for url in partial_matches]
+        
+        # Pattern 3: Just the username part (linkedin.com/in/username)
+        if not linkedin_urls:
+            username_pattern = r'linkedin\.com/in/([\w\-]+)'
+            username_matches = re.findall(username_pattern, text, re.IGNORECASE)
+            if username_matches:
+                linkedin_urls = [f"https://linkedin.com/in/{username}" 
+                               for username in username_matches]
         
         contact['linkedin'] = linkedin_urls[0] if linkedin_urls else None
         
