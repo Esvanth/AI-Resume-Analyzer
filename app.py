@@ -8,14 +8,6 @@ from src.scorer import ResumeScorer
 import tempfile
 import os
 from datetime import datetime
-st.markdown("""
-<head>
-    <meta property="og:title" content="AI Resume Screener" />
-    <meta property="og:description" content="Upload resumes and get AI-powered candidate scoring instantly!" />
-    <meta property="og:image" content="https://raw.githubusercontent.com/yourusername/yourrepo/main/preview.png" />
-    <meta property="og:url" content="https://ai-resumescorer.streamlit.app/" />
-</head>
-""", unsafe_allow_html=True)
 
 # Page configuration
 st.set_page_config(
