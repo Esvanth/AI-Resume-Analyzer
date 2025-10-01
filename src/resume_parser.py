@@ -86,7 +86,7 @@ class ResumeParser:
         return text
     
     def clean_text(self, text):
-        """Clean and normalize text while preserving important patterns like URLs"""
+        """Clean and normalize text while preserving important patterns like URLs, emails, and phone numbers"""
         if not text:
             return ""
         
@@ -116,13 +116,29 @@ class ResumeParser:
             email_placeholders[placeholder] = email
             text = text.replace(email, placeholder)
         
+        # Protect phone numbers
+        phone_patterns = [
+            r'\+\d{1,3}[-.\s]?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}',
+            r'\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}',
+            r'\d{3}\.\d{3}\.\d{4}',
+            r'\d{3}-\d{3}-\d{4}',
+            r'\b\d{10}\b',
+        ]
+        phone_placeholders = {}
+        for i, pattern in enumerate(phone_patterns):
+            phones = re.findall(pattern, text)
+            for j, phone in enumerate(phones):
+                placeholder = f"__PHONE_{i}_{j}__"
+                phone_placeholders[placeholder] = phone
+                text = text.replace(phone, placeholder)
+        
         # Now clean the text
         # Remove extra whitespace but keep single spaces
         text = re.sub(r'\s+', ' ', text)
         
         # Remove special characters but keep important ones
-        # Keep: letters, numbers, spaces, @, ., -, _, and our placeholders
-        text = re.sub(r'[^\w\s@.\-_]', ' ', text)
+        # Keep: letters, numbers, spaces, @, ., -, _, +, (, ), and our placeholders
+        text = re.sub(r'[^\w\s@.\-_+()]', ' ', text)
         
         # Remove multiple spaces
         text = re.sub(r' +', ' ', text)
@@ -134,6 +150,10 @@ class ResumeParser:
         # Restore emails
         for placeholder, email in email_placeholders.items():
             text = text.replace(placeholder, email)
+        
+        # Restore phone numbers
+        for placeholder, phone in phone_placeholders.items():
+            text = text.replace(placeholder, phone)
         
         return text.strip()
     
